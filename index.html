@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inspire Me – Daily Quote App</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #3f51b5, #2196f3);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 30px;
+  }
+  h1 {
+    margin-bottom: 20px;
+  }
+  .page {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+  }
+  .page.active {
+    display: flex;
+  }
+  .quote-card {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    margin-bottom: 20px;
+    transition: opacity 0.4s ease;
+  }
+  #quote {
+    font-size: 1.4em;
+    margin-bottom: 10px;
+  }
+  #author {
+    font-style: italic;
+    color: #ffeb3b;
+  }
+  button {
+    background: #ffca28;
+    color: #333;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 5px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  #favorites-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 500px;
+    margin-top: 20px;
+  }
+  .favorite-card {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 15px;
+    margin: 10px;
+    width: 100%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+  .favorite-card p {
+    margin-bottom: 5px;
+  }
+  .favorite-author {
+    font-style: italic;
+    color: #ffeb3b;
+  }
+</style>
+</head>
+<body>
+
+<!-- Quotes Page -->
+<div id="quotes-page" class="page active">
+  <h1>🌿 Inspire Me 🌿</h1>
+  <div class="quote-card">
+    <p id="quote">Loading...</p>
+    <p id="author">—</p>
+  </div>
+  <button onclick="getQuote()">✨ New Quote</button>
+  <div class="actions">
+    <button onclick="copyQuote()">📋 Copy</button>
+    <button onclick="shareQuote()">🔗 Share</button>
+    <button onclick="saveFavorite()">❤️ Favorite</button>
+    <button onclick="showPage('favorites-page')">❤️ View Favorites</button>
+  </div>
+</div>
+
+<!-- Favorites Page -->
+<div id="favorites-page" class="page">
+  <h1>❤️ My Favorite Quotes</h1>
+  <div id="favorites-list"></div>
+  <div class="actions">
+    <button onclick="clearFavorites()">🗑 Clear All Favorites</button>
+    <button onclick="showPage('quotes-page')">⬅ Back to Quotes</button>
+  </div>
+</div>
+
+<script>
+  async function getQuote() {
+    const card = document.querySelector('.quote-card');
+    card.style.opacity = 0;
+    try {
+      const res = await fetch('https://api.quotable.io/random');
+      const data = await res.json();
+      document.getElementById('quote').innerText = data.content;
+      document.getElementById('author').innerText = '— ' + data.author;
+    } catch (err) {
+      document.getElementById('quote').innerText = 'Failed to load quote.';
+      document.getElementById('author').innerText = '';
+    }
+    setTimeout(() => { card.style.opacity = 1; }, 100);
+  }
+
+  function copyQuote() {
+    const quote = document.getElementById('quote').innerText;
+    navigator.clipboard.writeText(quote).then(() => {
+      alert('Quote copied!');
+    });
+  }
+
+  function shareQuote() {
+    const quote = document.getElementById('quote').innerText;
+    const author = document.getElementById('author').innerText;
+    if (navigator.share) {
+      navigator.share({ title: 'InspireMe Quote', text: `${quote} ${author}` }).catch(console.error);
+    } else {
+      alert('Sharing not supported on this device.');
+    }
+  }
+
+  function saveFavorite() {
+    const quote = document.getElementById('quote').innerText;
+    const author = document.getElementById('author').innerText;
+    const fav = { quote, author };
+    let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    favorites.push(fav);
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+    alert('Added to favorites!');
+  }
+
+  function loadFavorites() {
+    const container = document.getElementById('favorites-list');
+    container.innerHTML = '';
+    const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    if (favorites.length === 0) {
+      container.innerHTML = '<p>No favorites yet!</p>';
+      return;
+    }
+    favorites.forEach((fav, index) => {
+      const card = document.createElement('div');
+      card.className = 'favorite-card';
+      card.innerHTML = `
+        <p>${fav.quote}</p>
+        <p class="favorite-author">${fav.author}</p>
+        <button onclick="deleteFavorite(${index})">🗑 Remove</button>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function deleteFavorite(index) {
+    let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    favorites.splice(index, 1);
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+    loadFavorites();
+  }
+
+  function clearFavorites() {
+    if (confirm('Are you sure you want to clear all favorites?')) {
+      localStorage.removeItem('favorites');
+      loadFavorites();
+    }
+  }
+
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (id === 'favorites-page') loadFavorites();
+  }
+
+  getQuote();
+</script>
+
+</body>
+</html>
